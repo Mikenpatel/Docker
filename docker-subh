@@ -1,0 +1,476 @@
+To list out all available images --> docker images
+To download image from docker hub---> docker pull <Image_name>
+To see all the detail information about any image--> docker inspect <Image_name> or <container ID>
+   - In that, will be able to see workdir which is where docker stors everything usually var/lib/docker
+To delete image--> docker rmi <Image_name>
+To search docker images --> docker search <Image_name>
+  - It will show top 25 Images
+To see the histroy of image--> docker history <Image_name>
+To remove all the images where no container is running --> docker image prune -a(Images which is not being used)
+
+Docker provides two types of Images -->> 1. os based 2. Application based
+When we pull and run any os based images container will stops as soon as it gets create becasue there is no process running inside this container .
+NOTE: CONTAINER STAYS ALIVE ONLY IF ANY PROCESS IS RUNNING INSIDE
+
+How are we going to deal with os based images then?  --> as it gets shut down immediately 
+solution: run the container(OS Based) interactively
+docke run -it centos bash 
+or run any process inside container: docker run -d  centos sleep 60--> container will died after 60 seconds
+Appropriate way to come out of container is ctrl+pd
+if will type exit()--> Then it will remove the process id which is associted and our container gets stopped
+
+One more way to log in to the container: docker attach <Containerr ID>---> No user session process will be created
+
+
+To see running containers --> docker ps
+To create container--> docker run -d -P </Image_name> (Capital P is for random port mapping and p is for manual mapping)
+To logging to the container--> docker exec -it <Container_id> /bin/bash
+    cat /etc/os-release
+In Linux  machine to see the information about VM--> cat /etc/os-release
+Nginx provides web page
+If we are installing Nginx directly to our host machine then we can see our web page using localhost:port
+But as we are installing this to container port mapping will take place and will need to used mapped port 
+docker run -d -p 90:80(virtaul machine or our machine: container port ) <Image Name>
+To remove container --> docker rm <container ID>  -f -> To remove it forcefully
+To restart -->docker restart <Container Id>
+To stop container-->docker stop <Container ID>
+To start container --> docker start <Container Id>
+To rename container name --> docker rename <Previous name> <latest name>
+To see the resource consumption by containers----> docker stats
+To see continer logs--> docker logs <Container Id>  -f (to see relatime)
+
+
+Image management and registry: 
+
+Custom image creation:
+
+There are two ways to create custom images :
+1. Manual one
+2. Automated(Docker file)
+
+Assume that we have niginx image downloaded from the internet --> cotnainer running
+
+Now we have modified index.html file in that container
+We can make image out of this container :   docker commit -m "Modified index.html" <Container-id> <image-name>-- newnginx:latest
+we can push this image in docker-hub  :  
+   requirements for this is : image name should be start with account name
+   docker tag newnginx:latest   accountname/newginx:latest ---> Create new image with different name(same id)-->synoname
+   docker login: ask for usename and password
+   docker push <image name>
+
+
+
+2. Automated(Docker File):
+
+   Automated process ( real time practice )
+   =========================================
+      create a simple text file & write the all the instructions build an image
+
+      vi mydockerfile
+          FROM ubuntu
+          RUN apt-get udpate
+          RUN apt-get install -y nginx vim
+          RUN mkdir /home/config/
+          RUN touch /home/config/db.props
+          EXPOSE 80
+          CMD /usr/sbin/nginx -g "daemon off;"  : - --->This command will run forever in background (This command will make our container alive)
+      save&quit
+
+      docker build -f /path/to/mydockerfile -t <new image name> . (context "." (currnet directory))
+
+      For every step in dockerfile intermediate container will be created  and in next step previous one will get removed
+
+      whatever command will writing in CMD directives. This will be available in the commnd when we run docker ps
+
+
+
+
+Docker Directives: 
+
+FROM:Defines the base image
+RUN: used for on time command execution
+EXPOSE: To expose container port number
+CMD: This command will continue to run forever  
+COPY: To copy something from host to container
+ENV: To set environment variables.These can be reference in dockerfile
+WORKDIR: sets the cwd for subsequent drectives such as ADD, COPY, CMD, ENTRYPOINT. can be used multiple time to chage the directory.
+ADD: similar to COPY, but can also pull files using URL and extract an archive into loos files in the image (To copy something from the open internet)
+STOPSIGNAL: specify the signal that will be used to stop container
+HEALTHCHECK: specify a command to run in order to perform a custom health check to verify that the container is working properly
+
+
+docker run -it  -P newubuntu:v1 bash ---> In command will see bash instead of /usr/sbin/nginx -g "daemon off"
+But when we use the ENTRYPOINT directive ---> No matter what we do this will run with this only. When we define something in the CMD this wiil get override with what we are passing in run command
+
+Difference between CMD and ENTRYPOINT: 
+
+Both runs the process which runs the container alive
+CMD can be overwritten if we run the container in interactive mode
+ENTRYPOINT can't be overwritten
+
+
+
+
+Storages in Docker:
+
+Docker Volume:   (Write data or logs from container to host machine)
+To create docker volumes: docker volume create myvol
+To list all volumes: docker volume ls
+To inspect: docker volume inspect <Volume name>
+
+  myvol:
+    {
+        "CreatedAt": "2022-12-25T04:18:55Z",
+        "Driver": "local",
+        "Labels": {},
+        "Mountpoint": "/var/lib/docker/volumes/myvol/_data",
+        "Name": "myvol",
+        "Options": {},
+        "Scope": "local"
+    }
+
+
+We want to mount tomcat logs:
+first we need to know where tomcat stores the logs
+
+winpty docker run -it -P tomcat bash
+usr/local/tomcat/logs--> This is where tomcat stores the logs
+
+We want to store tomcat logs in Mountpoint location
+
+docker run -d -P -v myvol:usr/local/tomcat/logs(hostmachine: container) tomcat      --> In this case container will write logs to Mountpoint
+To remove volumne : docker volume rm myvol
+
+Example of Bind Mount:(To share the data from virtual machine to container)
+
+Here in place of giving the volume name we are giving the location of host machine from where is want container to read data (Passing data from this location to inside container)
+
+container will fetch the data from virtual machine(we are giving content of virtual machine to the container virtual filesystem)
+To run docker container with volumes:
+     docker run -d -P -v /tmp/nginxconfig: /usr/share/nginx/html(path of virtual system:path inside docker container) nginx
+  -- What this will do is we are mounting our own path in place of container path (replacing given container location with our system path)
+
+  Purpose of volume is to get the data from container to virtual machine
+  purpose of Bind mount is to get data from virtual machine to container
+
+  Bind Mount:     Container <----------- volume
+  Volumes:   Container ------> volume
+
+  We can use our RAM as a file system for our container.This concept is known as tmpfs system.
+  docker run -d -P --mount type=tmpfs,dst=/usr/share/nginx/html nginx
+
+  Container Orchestration:
+
+  Docker Compose:
+   To run: docker compose -f <File_Name> up -d
+   To stop and remove: docker compose -f <File_Name> down -d
+   To scale: docker compose -f <File_name> --scale <service_name>=3  service name comes from docker file<File_name> --scale <another service>=1    we need to mention all service
+
+   docker-compose.yml;
+
+services:
+  webserver:(Any name)
+    image: nginx
+    ports: 
+      - "80"
+    restart: always 
+    network_mode: bridge
+    volumes:
+      - /home/docker/:/usr/share/nginx/html
+      - /tmp:/usr/share
+
+docker volume ls
+docker volume inspect
+
+
+when we scale up and scale down the containers  port mapping is always changing which makes it very difficult to use load balancer. Port mapping is not available in docker-compose.
+
+Problems with docker-compose:
+1. Single node failure
+2. We have to have configrue external load balancer once we scale up or scale down containers.
+
+
+Docker swarm:
+
+Docker swarm comes by default with docker installation.
+To check if docker swarm is active or not --> docker info | grep -i swarm
+
+To initilize docker swarm :   docker swarm init (Node on which we are running this commnad will be considered as a master node)
+Once we do this will see the following command to add the worker node to our master node
+docker swarm join  --token   TOKEN_ID  ---> This command needs to be run on worker node
+
+To see if nodes have been added ---> docker node ls
+
+Service in a docker swarm is load balancer and replicas as well
+
+docker service ls : To check all running services    (same as docker ps)
+
+To run any service: docker service create --name web --replicas 4 -p 9091:3000 <Image_Name>
+
+docker service ps <Service_name>
+
+To scale up  and down : docker service scale web=10
+To remove service: docker service rm <Service name>
+To update docker service: docker service update --image  <New Image>  <Service Name>  (Just need to provide new image)
+
+ 
+ Every contaier is associated with the service which will act as a replicaset and load balancer for the containers 
+ And External load balancer will balance the load for the worker nodes
+
+
+ service(Web-app)-----   Container 1 
+   (Load Balancer)       Container 2
+    (Replicas)           Container 3
+
+How this work in Enterprise Level:
+
+NOTE: In docker swarm , on master node will have some containers running       
+      Failure of master node will not impact the worker nodes
+
+                                   Node1
+  External Load Balancer           Node2
+                                   Node3      
+                                   Master node
+
+
+Self-Healing concept:
+Experiments:   Try to remove any container and check   
+               Make any worker node down and check    (We can stop any sevrvice from worker node:   service docker stop)
+
+Docker can't restart and self heal worker node : Services on the nodes can be managed
+If any node gets failed then  it will try to create the containers on other nodes.If other nodes dont have space for that containers then these will goes to pending state
+
+
+Docker stack:
+Stack is a group of services. It is to work with docker files.
+Services is a group of container 
+For the commnand line we have service
+
+docker stack deploy -c <file name> <stack name>
+docker stack ls
+docker stack ps <stack_name>
+docker stack rm <stack_name>
+
+version: "3"
+services:
+  app:
+    # replace username/repo:tag with your name and image details
+    image: nareshmnvs/myapp:latest
+    deploy:
+      replicas: 5
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 150M
+    ports:
+      - "3000:3000"
+  web:
+    # replace username/repo:tag with your name and image details
+    image: nareshmnvs/nginx:v1
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: 50M
+    ports:
+      - "8090:80"
+networks:
+   mynet:
+
+
+How  to remove docker swarm:
+
+Docker swarm doesn't have the multi master archi
+What we can do is we can assgin second manager to the cluster
+
+docker swarm leave --force
+
+
+How to network connectivety work in the swarm:
+docker swarm init
+docker network ls : one new network name ovelay name is ingress
+docker network inspect ingress
+
+We can also create overlay network : 
+
+docker network create myoverlay --driver overlay
+docker network ls
+
+
+Docker Networking:
+
+consider a scenario that we have two containers running in one server.
+By default They are allowed to communicate with each other.
+Docker0 is the network by which containers running under the one server allowed to communicate.It creates the default network.
+
+ifconfig: Will be able to see all relevant IP Address such as 
+lo : (Local Host address)
+eth0(Ethernet 0): IP address of machine
+docker_gwbridge: docker gateway bridge : associated with docker swarm
+docker0: docker0 network for example  consider ip 17.17.0.1
+What does that mean is that whatever the container will create will be associated with that IP address only
+All contaier will use the gateway of docker0 network
+
+
+whenever we create a new network this network will create a  new network which will be visible in the ifconfig. And new container will have a individual internal IP
+
+Now when we are working with docker swarm what is required is that our containers should be allowed to commutinate accross the network.
+For this type of communication we work with overlay network
+
+To see all avalible newtorks in docker --> docker network ls
+ Major network is bridge,host and none
+
+ docker inspect bridge  
+
+ Create a two container and see if they are able to communicate.
+
+ docker run -d --name cont1 nginx
+ docker run -d --name cont2 nginx
+
+ docker exec -it cont1 bash (For both container)
+    apt update
+    apt-get install iputils-ping
+
+   then go into container 1 or con2 and ping to other container
+   docker exec cont1 ping <IP address of container 2>
+
+ To get the ip address of container :   docker inspect <Container id> or docker exec <container_name> hostname -i
+
+Whatever container we are creating is part of bridge network (By default)
+
+It is also possible to have a more than one network in one server
+
+To create a new network : docker network create --drive bridge mybridge
+
+docker network ls
+dokcer run -d --name <container name> --network <network name>
+To remove network: docker network rm <Network_id>
+
+
+
+current situation is:
+default network: cont1 and cont2
+net1: cont3 and cont4 
+
+Now we want to move cont1 to  net1
+docker network connect net1 cont1:
+
+After this our container will be associated with two network :    default and net1
+
+
+Host Network: 
+
+Create a container inside host network:
+when will inspect container or host network will not see IP address and getway address : 
+
+docker exec cont hostname -i(Same IP as Host machine)
+and hostname -i 
+
+So here whatever IP is assigned to hostmachine will be assigned to container as well( If we are creating this container in host network )
+
+Now assume that we have created nginx container in host network so this will occupy port 80 on host machine. When will try to run another container of nginx will not be able to do so
+
+
+What is the purpose of using the host network:
+It is only used when we want to have a containerized environment with same host details
+No two containers can use the same ports
+
+
+Non Network:
+
+No IP address at all
+docker run -d --name con1 --network none nginx
+docker inspect cont1 --> No IP address
+docker exec cont1 hostname -i :   failure in name resolution 
+It doesn't assign any IP address at all
+It is not a part of  any network
+
+It is not used at enterprise level
+Consder same as our laptop is not connected to network at all
+
+MACVLAN netowrk:
+similar to bridge network. In bridge network we were not having the flexibiity to choose IP range.
+
+docker network create -d macvlan --subnet 192.168.0.0/24 --gateway 192.168.0.1 -o parent=eth0 my-macvlan-net
+If we select eth0 network then its going to choose IP range from that network.
+
+docker network create -d macvlan --subnet 192.168.0.0/24 --gateway 192.168.0.1 -o parent=eth0 my-macvlan-net
+docker run -d --name macvlan
+
+
+Docker Security DCT(Docker Content Trust):
+
+Now consider a scanario that in ORG users should only download images from the trusted party(Only official Images)
+docker tag nginx:latest <account_number>/mynginx:untrusted
+docker push <image_name>    (WE pushed the untrusted image in docker hub) :: consider organization account
+
+No we are going to generate delegation key pair :
+docker trust key generate <keysigner>   Here keysigner is account ID
+It will ask us for password and then it will load the private key and share us corrospond public key which will use for security 
+
+Then we need to add delegation public key to the registry:
+docker trust signer add --key /<path-to-key> <keysigner> <reponame>       Here keysigner is account ID
+
+docker tag  nginx:latest <Account_id>/testnginx:trusted
+
+Sign Image with key
+
+docker trust sign <username>/<reponame>:<tagname>
+
+docker push trusted image
+
+Points to consider
+
+1. Generated public key should be available to every developer who is going to work with docker otherwise he will not able to download trusted images.
+2.  Every developer should have :   export DOCKER_CONTENT_TRUST =1 enabled   by default it is zero
+
+After enabling this will not able to dowload untrusted images
+
+
+Docker Enterprise Edition: Also called as Mirantis
+
+To set up docker enterprise follow the Downloaded PDF
+
+
+To set up docker url :
+
+sudo DOCKER_URL="https://repos.mirantis.com" ./installer.sh
+
+Then install launch 
+Copy this launchpad to virtual machine or EC2 instance --> scp launchpad-linux root@<IP Address of EC2>: /tmp/  or docker@<IP Address>
+
+Other way is to download in server only
+
+In edureka file replace Pi with ApiVersion
+
+
+
+
+
+
+
+
+
+
+Concepts to Learn:
+
+MesOS
+CyberArk
+Jfrog
+Nexuos
+SSOz
+Marathon
+Operations center in Jenkins
+castle jenkins
+Jenkins Agent on demand
+logstash
+ElasticSearch
+What is Tradis
+BamPlus
+
+

@@ -1,0 +1,334 @@
+What is Container?
+--> Container is a way to package app with all necessary dependencies and configuration.
+Portable artifact,easiy shared and moved around.
+
+where do container live?
+--> container Repository.Public Repo for docker(DockerHub)
+
+How container improved the development Process?
+Earlier used to download all apps directly in the system.
+
+After container: Dont need to install any apps directly .
+One docker command to install the app.
+
+We can also have a same application with two different version running on a local machine without any conflict.
+
+
+1. Application Deployment Before Container:
+
+
+Development Team : give the artifcats with set of instruction regarding how to work with ---> operation team (Need to configure server with
+                                                                 all Required external dependencies) which could lead to version conflicts
+also if there is an misunderstanding between development and operational team.
+
+
+with Container:
+
+Developers and operationals work together to package the application in a container.
+No environmental configuration needed on server except ---> Docker Runtime
+
+
+
+2. What is container?
+Layers of images
+Mostly linux base image,becasue small in size(base image)
+base image(linux base)--> some intermediate imgaes--> application image.
+
+3. Commands :
+
+Docker run postgras:9.6
+docker ps(To see all the running contianer)
+
+Docker Image:It is the actual package with all dependencies.
+When the application actually start which creates the container.
+Running image is known as container
+
+4. Docker vs virtual machine?
+-->> os-->    Application-->OS Kernal-->Hardware
+Both Viratualizaton tools. So what part on OS they virtaulize?
+Docker-->Applicaton Layer.
+it uses kernel of host
+
+vm:
+its own application layer and kernel(It virtualize complete operating system)
+
+The size of Docker images is very small 
+run and start much faster
+Virutal machine images can be run on any OS 
+
+For docker we cant run windows on top of linux kernel
+
+Docker natively runs on windows 10. 
+
+
+5. Basic Commands:
+ Container is Running environment for IMAGE
+ Container has a port bind to it which makes it possible to talk with application running inside of container.
+ File system is virtual in container.
+
+To check all existing images: docker images
+To list all running containers:docker ps
+To terminate ctrl+c
+To run container in a detached mode: docker run -d redis:  output will be only container ID
+To restart the container: docker stop <id_of_container>
+                          docker start <id_of_container>
+                          docker ps -a (which shows all docker container which is running and not running)
+To pull the image from repository: docker pull
+                          
+
+Now consider a situation where there is two application which needs diffrent versions of reddis images
+How to use running container Now for different versions of reddis images are listening on same port(6379)
+How actually possible without any conflicts?
+
+container port vs host port
+so our laptop has certain ports which we can open up for listening
+
+and container has some ports on which apps are listening for incomming requests.
+
+
+host machine ---  2000     3000    3001(Port)      Port binding is applicable here
+
+container   ----  5000     3000    3000(Port)
+
+Now will have conflict if we open two 3000 or 5000 ports on host machine(Msg is like port is already bound).However we can have two container both listening on same port as long as we bind
+it to two different host port.
+
+some-app://localhost:3001 --> and host know where to forward this request using port binding
+
+To do some by specifing binding of the ports while running containers
+
+We have two redis so we need to bind it to two diffent ports on our host(Laptop)
+
+docker run -p6000:6379 redis(host or laptop port :port which we bind to)
+docker run -p6001:6379 redis:4.0
+
+To see logs of any container: docker logs <container_id>
+                              docker logs <name of container>
+
+
+To run container with name: docker run -d -p6001:6379 --name redis_older_version:4.0(new container with given name)
+To get a termial of running container: docker exec -it(interactive terminal) <container id> /bin/bash---> to see virtual file system all config file and path  etc .
+or to see environmental variable env: winpty docker exec -it <container name> bash
+To exit type:exit
+
+
+Docker run: is where we create new container from an image-->it will take image with specific version-->to create a new container 
+docker start: working with container(once the container is created) --->To start the stop container
+
+--->Demo project overview:
+
+Developing a js app(Database mongoDB)---> commit chnages to version control----------->CI(Jenkins)---->Produce Artifact(create docker image out of that artifact)--->pushed to private repository
+----Development server pull both images.
+
+Some practical example:
+
+
+frontend+backend           ---------> MongoDB(docker Container)<-------Mongo Express-UI(docker container)  localhost:8081/db/my-db
+localhost:3000/my-app
+
+Understand the docker network:Docker creates its isolated docker network where the contianer running is
+
+when we deploy two container inside docker network(  Mondb and MongoExpress ) they can talk to each other with only container name without locahost port,etc.. because they are in the same networks
+
+and outside applications talk to it with port no.
+
+To see default networks provided by docker: docker networks.
+
+Will create our own network for mongoDB and mongo Express called it --> mongo-network
+
+docker network create mongo-network
+docker network ls
+
+Now in order to make our mongoDb and Mongo Express run inside this contianer we need to pass options in docker run command
+
+docker run -p27017:27017 -d -e(environment variables) MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password --name mongodb --net mongo-network mongo ---> MongoDb
+docker run -p8081:8081 -d -e ME_CONFIG_MONGODB_ADMINUSERNMAE=admin -e ME_CONFIG_MONGODB_ADMINPASSWORD=password --net mongo-network --name mongo-express -e ME_CONFIG_MONGODB_SERVER=mongodb(container name of mongo db) mongo-express
+using this last commnad mongo-express is able to connect to mongodb database container.
+
+localhost:8081(GUI )
+
+docker logs name
+docker logs name |tail 
+docker logs -f (stream)
+
+
+
+Docker compose:
+
+if we have a bunch of docker container to run then this run command with all parameters is not a proper and efficeint ways.
+There is a tool to run all this commnad much easier ---> docker compose
+
+with docker compose file we can take all this commands and copy it to file.
+
+Mongo-docker-compose.yaml
+
+version:'3
+services:
+   mongodb:
+      image:mongo
+      ....
+   mongo-express:
+      image:mongo-express
+      ports:
+         -8080:8080
+      environment:
+         ----
+
+
+docker compose will take care of creating common network for this containers(so we dont need to create and specify in which network this contianer will run in)
+
+This file is a part of application code.
+---->docker-compose -f(file name) mongo.yaml up
+---->docker-compose -f momgo.yaml down
+
+NOTE: WHEN WE RESTART THE CONTAINER ,EVERYTHING CONFIGURED IN THE CONTIANER IS GONE SO DATA IS LOST(DOCKER VOLUMES FOR PERSISTENCE)
+
+
+now will create a docker image of javascript and node js application and prepare it to be deploy it on environment
+
+
+Docker Hub
+Developing a javascript App ----------->commit to git --------->Jenkins------------> push--------> Docker Repository
+                                                                (build js App & Docker Image)
+                                                                (take docker file and create docker images which we simulated below )
+
+What is docker file?
+It is a blueprint for creating docker images
+
+Dockerfile:
+FROM NODE
+ENV MONGO_DB_USERNAME=admin MONGO_DB_PWD=password
+RUN mkdir -p /home/app  (RUN -Execute any linux command)  This directory is created inside of a container  all these commands executed in contianer (as preceding with RUN)
+COPY . /home/app (This will copy to host file system)
+CMD ["node","/home/app/server.js"]--->entry point command ,start the app with node server.js
+
+This file is always called "Dockerfile"--->simple text file
+
+
+How to build image out of it.
+
+--> we have to provide two parameter(image name and location)
+docker build -t my-app(image-name):1.0 .(location of a docker file )
+docker images
+
+To delete image:  docker rmi id
+
+docker file is a part of application code.
+
+first line of every docker file is from image(node)-->when will run the container will have a node available in our container
+in our case we have javascript appication so we need node inside our container 
+
+
+***Docker Private Repository
+Will use Amazon ECR .There are many more options Nix's,Digital ocean
+
+1. create private repo for docker (called ) also called docker registry
+ECR(Elastic container Registry)
+In amazon will have seperate repo for each images.
+
+We need to do two things to push images into registry 
+1. We have to log in to private repository(if we are doing this from local server)
+2. If we are doing it with the jenkins and will have to give jenkins credentials
+
+1 .Aws log in command(Will find this on ECR after creating private Repo)
+ Pre-Requisites for it--> Amazon Cli needs to be installed
+ credentials configured
+
+2. docker build -t imagename filenname
+
+
+3.image naming in docker registry:
+registryDomain/imageName:tag
+
+docker tag my-app:1.0 8575757757755.dkr.ecr.eu-central-1.amazonaws.com/my-app:latest   (rename my-app to long one provided)
+docker push  <name of image:tag>
+
+
+Deploy Containerized App:
+
+After we package our application in docker image and saved it to private repository we need to deploy it to development server or integration server.We can are to use docker compose to 
+deploy it.
+Consider that we logged in to development server and we want to run our image which we pused to private repository
+so here will pull my-app (our app images from the private repository and mongoDb and mongoExpress from docker hub)
+
+will  run mongo.yaml file 
+
+
+
+Mongo-docker-compose.yaml
+
+version:'3
+services:
+   my-app:
+     image:url of private repo
+     port:
+      -3000:3000
+   
+   mongodb:
+      image:mongo
+      ....
+   mongo-express:
+      image:mongo-express
+      ports:
+         -8080:8080
+      environment:
+         ----
+
+
+first step is log in to ECR(docker login authenticate )
+next step is to have a docker compose file available on this development server
+execute docker compose file-->docker-compose -f mongo.yaml up
+
+
+
+Persisting data with Volumns:
+
+Consider that we have a data base container but here we dont have data persistent for example if we stop and restart the system will lost the data
+which is not very practical
+
+What is Docker Volumner?
+--> On a host we have a physical file system will plug this file system to contianers
+in simple terms folder in physical file system is mounted inot virtual file system of docker.
+
+3types of docker volumnes;
+
+docker run -v /home/mount/data:/var/lib/mysql/data
+we decide where in the host file system the reference is made
+
+Anonymous Volumns:
+docker -v /var/lib/mysql/data
+for each container a folder is generated that gets mounted (We dont have a reference to this automatically genered folder)
+
+imporvement on anonymous volumns:
+Named Volumns--->Mostly used in production
+docker -v name:/var/lib/mysql/data
+
+
+Demo:
+
+Docker Volume location:  windows: c:\ProgramData\docker\volumes
+
+
+SRE:
+
+system: Whole Deployment infrastructure
+Reliability: ensure that system is up and running
+how to we make system reliable?
+
+
+So here thing is dev will make the changes
+developer(wants to release fast)           operations (keeps stability)
+ Traditionally devs will make changes and ops would analyz with 100of chechlist to make sure that chnage would not affect the system.but this whole analysis slows down the release process
+That is what devops and SRE tries to solve
+SRE will tires to automate the process of evaluating the affects the chnages will have
+
+
+How is the automated evalution done?
+--->using SLA's(service level agreement)
+
+
+
+
+
+
+

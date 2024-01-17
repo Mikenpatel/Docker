@@ -1,0 +1,34 @@
+
+docker images
+docker pull
+docker run 
+docker inspect <Image_name> <Container ID>
+docker rmi <Image Name>
+dokcer rm <container name>
+docker search <Image Name>
+docker history <Image_name>
+docker image prune -a (Remove all unused images)
+docker attach <Container ID>  (To log in to container)
+docker ps (running container)
+docker ps -a (List all contianers)
+docker run -d -p8080:8080 <Image_name> : -P default port  -v: volume mapping
+docker exec -it   <Container_id> bash
+docker logs <Cotnainer name>  : -f(To see realtime)
+
+To make image out of contianer: 
+docker commit -m "modified image" <container id> <image_name>
+docker tag <image name> <new tag>
+docker login
+docker push
+
+
+To build image from dokcer file: docker build -f <dokcer file name> -t <Imagename> .
+docker volume ls
+docker volume inspect
+docker volume create <volname>
+docker volume rm <volume>
+
+
+
+
+
